@@ -34,6 +34,7 @@ button {
   height: 50px;
   border: none;
   background-color: #aaa;
+  cursor: pointer;
 }
 
 textarea {
