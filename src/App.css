@@ -1,0 +1,41 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  row-gap: 20px;
+  padding: 30px 20px;
+  width: 100vw;
+}
+
+.inputWrap {
+  display: flex;
+  width: 100%;
+}
+
+label {
+  width: 15%;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+input,
+textarea {
+  width: 75%;
+}
+
+button {
+  margin-left: 20px;
+  width: 7%;
+  height: 50px;
+  border: none;
+  background-color: #aaa;
+}
+
+textarea {
+  height: 500px;
+}
