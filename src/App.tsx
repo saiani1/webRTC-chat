@@ -1,66 +1,93 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
 
 function App() {
+  const [peer, setPeer] = useState<RTCPeerConnection>();
   const [localDes, setLocalDes] = useState<RTCSessionDescription | null>();
   const [isSendOffer, setIsSendOffer] = useState(false);
   const [chat, setChat] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const setRemoteRef = useRef<HTMLInputElement>(null);
 
-  const peer = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: "stun:stun.l.google.com:19302",
-      },
-    ],
-  });
-  let dc = peer.createDataChannel("channel");
+  useEffect(() => {
+    if (!peer) {
+      const newPeer = new RTCPeerConnection({
+        iceServers: [
+          {
+            urls: "stun:stun.l.google.com:19302",
+          },
+        ],
+      });
+      setPeer(newPeer);
+    }
+  }, []);
+
+  let dc = peer?.createDataChannel("channel");
 
   const handleSDPBtnClick = async () => {
-    dc.onmessage = (e) => console.log("Just got a message " + e.data);
-    dc.onopen = () => console.log("Connection opened!");
+    if (dc) {
+      dc.onmessage = (e) => {
+        toast.success("새로운 메시지가 도착했습니다.");
+        setChat((prev) => prev + `${e.data}\n`);
+      };
+      dc.onopen = () => console.log("Connection opened!");
+    }
 
-    peer.onicecandidate = () => {
-      console.log("ice후보자를 찾고있어요");
-      setLocalDes(peer.localDescription);
-      console.log("peer.localDescription", peer.localDescription);
-    };
+    if (peer) {
+      peer.onicecandidate = () => {
+        console.log("ice후보자를 찾고있어요");
+        setLocalDes(peer.localDescription);
+      };
 
-    peer
-      .createOffer()
-      .then((o) =>
-        peer.setLocalDescription(o).then(() => {
+      const offer = await peer.createOffer();
+      await peer
+        .setLocalDescription(offer)
+        .then(() => {
           toast.success("성공적으로 localDescription을 설정했어요.");
           if (peer.localDescription?.sdp) {
             setIsSendOffer(true);
           }
         })
-      )
-      .catch((err) => toast.error(err));
+        .catch((err) => console.log(err));
+
+      peer.onconnectionstatechange = () => {
+        console.log("connectionstate", peer.connectionState);
+      };
+
+      peer.oniceconnectionstatechange = () => {
+        console.log("iceconnectionstate", peer.iceConnectionState);
+      };
+    }
   };
 
-  const handleSetRemoteBtnClick = () => {
+  const handleSetRemoteBtnClick = async () => {
     const ref = setRemoteRef.current;
     const sdp = ref?.value;
 
-    console.log("isSendOffer", isSendOffer);
-    if (!isSendOffer) {
+    console.log("handleSetRemoteBtnClick눌렀을 때", peer);
+
+    if (!isSendOffer && peer) {
       peer.onicecandidate = () => {
         console.log("ice후보자를 찾고있어요");
         setLocalDes(peer.localDescription);
-        console.log("peer.localDescription", peer.localDescription);
+      };
+
+      peer.onconnectionstatechange = () => {
+        console.log("connectionstate", peer.connectionState);
+      };
+
+      peer.oniceconnectionstatechange = () => {
+        console.log("iceconnectionstate", peer.iceConnectionState);
       };
 
       peer.ondatachannel = (e) => {
         toast.success("handleSetRemoteBtnClick 채널을 생성할게요.");
-        console.log("dc", dc, "peer", peer);
         dc = e.channel;
         dc.onmessage = (e) => {
           toast.success("새로운 메시지가 도착했어요!");
-          setChat(e.data);
+          setChat((prev) => prev + `${e.data}\n`);
         };
         dc.onopen = () => {
           toast.success("상대방과 연결되었습니다. 채팅을 시작할 수 있습니다.");
@@ -68,52 +95,50 @@ function App() {
       };
     }
 
-    if (ref && sdp) {
-      peer
+    if (ref && sdp && peer) {
+      await peer
         .setRemoteDescription(new RTCSessionDescription(JSON.parse(sdp)))
         .then(() => {
           toast.success("RemoteDescription을 설정했어요!");
         });
-      peer.ondatachannel = (e) => {
-        toast.success("RemoteDescription설정 후, 채널을 생성할게요.");
-        console.log("dc", dc, "peer", peer);
-
-        dc = e.channel;
-        dc.onmessage = (e) => console.log("new message from client! " + e.data);
-        dc.onopen = () => console.log("Connection OPENED!!!!");
-      };
 
       if (!isSendOffer) {
-        peer.createAnswer().then((a) =>
-          peer.setLocalDescription(a).then(() => {
-            toast.success("answer를 생성했어요");
-            peer.ondatachannel = (e) => {
-              toast.success("answer 생성 후, 채널을 생성할게요.");
-              console.log("dc", dc, "peer", peer);
-
-              dc = e.channel;
-              dc.onmessage = (e) =>
-                console.log("new message from client! " + e.data);
-              dc.onopen = () => console.log("Connection OPENED!!!!");
-            };
-
-            if (peer.remoteDescription) setLocalDes(peer.remoteDescription);
-          })
-        );
+        await peer
+          .createAnswer()
+          .then(
+            async (a) =>
+              await peer.setLocalDescription(a).then(() => {
+                toast.success("answer를 생성했어요");
+                setLocalDes(peer.localDescription);
+                console.log("localDescription", peer.localDescription);
+                console.log("remoteDescription", peer.remoteDescription);
+              })
+          )
+          .catch((err) => console.log(err));
       }
     }
   };
 
   const handleChatArea = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setChat((prev) => prev + e.target.value);
+    setChat((prev) => prev + `${e.target.value}\n`);
   };
 
   const handleSendText = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const ref = textRef.current;
     const text = ref?.value;
-    if (text) dc.send(text);
+    console.log(text, ref);
+    if (text && dc) {
+      dc.send(text);
+      textRef.current.value = "";
+    }
   };
+
+  /*  useEffect(() => {
+    return () => {
+      peer.close();
+    };
+  }, []); */
 
   return (
     <div className="wrap">
