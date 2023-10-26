@@ -10,6 +10,7 @@ function App() {
   const [chat, setChat] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const setRemoteRef = useRef<HTMLInputElement>(null);
+  let dc = peer?.createDataChannel("channel");
 
   useEffect(() => {
     if (!peer) {
@@ -24,15 +25,14 @@ function App() {
     }
   }, []);
 
-  let dc = peer?.createDataChannel("channel");
-
   const handleSDPBtnClick = async () => {
     if (dc) {
       dc.onmessage = (e) => {
-        toast.success("새로운 메시지가 도착했습니다.");
-        setChat((prev) => prev + `${e.data}\n`);
+        toast.success("새로운 메시지가 도착했어요!");
+        setChat((prev) => prev + `너: ${e.data}\n`);
       };
-      dc.onopen = () => console.log("Connection opened!");
+      dc.onopen = () =>
+        toast.success("상대방과 연결되었습니다. 채팅을 시작할 수 있습니다.");
     }
 
     if (peer) {
@@ -83,11 +83,10 @@ function App() {
       };
 
       peer.ondatachannel = (e) => {
-        toast.success("handleSetRemoteBtnClick 채널을 생성할게요.");
         dc = e.channel;
         dc.onmessage = (e) => {
           toast.success("새로운 메시지가 도착했어요!");
-          setChat((prev) => prev + `${e.data}\n`);
+          setChat((prev) => prev + `너: ${e.data}\n`);
         };
         dc.onopen = () => {
           toast.success("상대방과 연결되었습니다. 채팅을 시작할 수 있습니다.");
@@ -110,8 +109,6 @@ function App() {
               await peer.setLocalDescription(a).then(() => {
                 toast.success("answer를 생성했어요");
                 setLocalDes(peer.localDescription);
-                console.log("localDescription", peer.localDescription);
-                console.log("remoteDescription", peer.remoteDescription);
               })
           )
           .catch((err) => console.log(err));
@@ -119,15 +116,12 @@ function App() {
     }
   };
 
-  const handleChatArea = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setChat((prev) => prev + `${e.target.value}\n`);
-  };
-
   const handleSendText = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const ref = textRef.current;
     const text = ref?.value;
-    console.log(text, ref);
+    setChat((prev) => prev + `나: ${text}\n`);
+
     if (text && dc) {
       dc.send(text);
       textRef.current.value = "";
@@ -162,7 +156,7 @@ function App() {
       </form>
       <div className="inputWrap">
         <label htmlFor="chat">chat</label>
-        <textarea value={chat} onChange={handleChatArea} />
+        <p>{chat}</p>
       </div>
       <Toaster
         containerStyle={{
