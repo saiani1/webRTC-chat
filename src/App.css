@@ -24,8 +24,12 @@ label {
 }
 
 input,
-textarea {
+p {
   width: 75%;
+}
+
+p {
+  white-space: pre-wrap;
 }
 
 button {

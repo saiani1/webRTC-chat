@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from "react";
-import "./App.css";
 import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
+
+import "./App.css";
 
 function App() {
   const [peer, setPeer] = useState<RTCPeerConnection>();
@@ -10,7 +11,7 @@ function App() {
   const [chat, setChat] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const setRemoteRef = useRef<HTMLInputElement>(null);
-  let dc = peer?.createDataChannel("channel");
+  const channel = useRef<RTCDataChannel>();
 
   useEffect(() => {
     if (!peer) {
@@ -26,12 +27,14 @@ function App() {
   }, []);
 
   const handleSDPBtnClick = async () => {
-    if (dc) {
-      dc.onmessage = (e) => {
+    channel.current = peer?.createDataChannel("channel");
+
+    if (channel.current) {
+      channel.current.onmessage = (e) => {
         toast.success("새로운 메시지가 도착했어요!");
-        setChat((prev) => prev + `너: ${e.data}\n`);
+        setChat((prev) => prev + `릿: ${e.data}\n`);
       };
-      dc.onopen = () =>
+      channel.current.onopen = () =>
         toast.success("상대방과 연결되었습니다. 채팅을 시작할 수 있습니다.");
     }
 
@@ -66,8 +69,6 @@ function App() {
     const ref = setRemoteRef.current;
     const sdp = ref?.value;
 
-    console.log("handleSetRemoteBtnClick눌렀을 때", peer);
-
     if (!isSendOffer && peer) {
       peer.onicecandidate = () => {
         console.log("ice후보자를 찾고있어요");
@@ -83,12 +84,12 @@ function App() {
       };
 
       peer.ondatachannel = (e) => {
-        dc = e.channel;
-        dc.onmessage = (e) => {
+        channel.current = e.channel;
+        channel.current.onmessage = (e) => {
           toast.success("새로운 메시지가 도착했어요!");
-          setChat((prev) => prev + `너: ${e.data}\n`);
+          setChat((prev) => prev + `메롱: ${e.data}\n`);
         };
-        dc.onopen = () => {
+        channel.current.onopen = () => {
           toast.success("상대방과 연결되었습니다. 채팅을 시작할 수 있습니다.");
         };
       };
@@ -122,9 +123,9 @@ function App() {
     const text = ref?.value;
     setChat((prev) => prev + `나: ${text}\n`);
 
-    if (text && dc) {
-      dc.send(text);
-      textRef.current.value = "";
+    if (text) {
+      channel.current?.send(text);
+      if (textRef.current) textRef.current.value = "";
     }
   };
 
