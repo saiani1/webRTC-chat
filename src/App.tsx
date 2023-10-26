@@ -1,33 +1,40 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import "./App.css";
 import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
 
 function App() {
-  const [localDes, setLocalDes] = useState({
-    type: "answer",
-    sdp: "",
-  });
+  const [localDes, setLocalDes] = useState<RTCSessionDescription | null>();
   const [isSendOffer, setIsSendOffer] = useState(false);
   const [chat, setChat] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const setRemoteRef = useRef<HTMLInputElement>(null);
 
-  const peer = new RTCPeerConnection();
+  const peer = new RTCPeerConnection({
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302",
+      },
+    ],
+  });
   let dc = peer.createDataChannel("channel");
-  peer.onicecandidate = () => {};
 
   const handleSDPBtnClick = async () => {
+    dc.onmessage = (e) => console.log("Just got a message " + e.data);
+    dc.onopen = () => console.log("Connection opened!");
+
+    peer.onicecandidate = () => {
+      console.log("ice후보자를 찾고있어요");
+      setLocalDes(peer.localDescription);
+      console.log("peer.localDescription", peer.localDescription);
+    };
+
     peer
       .createOffer()
       .then((o) =>
         peer.setLocalDescription(o).then(() => {
           toast.success("성공적으로 localDescription을 설정했어요.");
           if (peer.localDescription?.sdp) {
-            setLocalDes({
-              ...localDes,
-              sdp: peer.localDescription?.sdp,
-            });
             setIsSendOffer(true);
           }
         })
@@ -39,9 +46,17 @@ function App() {
     const ref = setRemoteRef.current;
     const sdp = ref?.value;
 
+    console.log("isSendOffer", isSendOffer);
     if (!isSendOffer) {
-      toast.success("채널을 생성할게요.");
+      peer.onicecandidate = () => {
+        console.log("ice후보자를 찾고있어요");
+        setLocalDes(peer.localDescription);
+        console.log("peer.localDescription", peer.localDescription);
+      };
+
       peer.ondatachannel = (e) => {
+        toast.success("handleSetRemoteBtnClick 채널을 생성할게요.");
+        console.log("dc", dc, "peer", peer);
         dc = e.channel;
         dc.onmessage = (e) => {
           toast.success("새로운 메시지가 도착했어요!");
@@ -56,16 +71,36 @@ function App() {
     if (ref && sdp) {
       peer
         .setRemoteDescription(new RTCSessionDescription(JSON.parse(sdp)))
-        .then(() => toast.success("RemoteDescription을 설정했어요!"));
-      if (localDes.sdp !== "" && !isSendOffer)
+        .then(() => {
+          toast.success("RemoteDescription을 설정했어요!");
+        });
+      peer.ondatachannel = (e) => {
+        toast.success("RemoteDescription설정 후, 채널을 생성할게요.");
+        console.log("dc", dc, "peer", peer);
+
+        dc = e.channel;
+        dc.onmessage = (e) => console.log("new message from client! " + e.data);
+        dc.onopen = () => console.log("Connection OPENED!!!!");
+      };
+
+      if (!isSendOffer) {
         peer.createAnswer().then((a) =>
           peer.setLocalDescription(a).then(() => {
             toast.success("answer를 생성했어요");
-            if (peer.localDescription?.sdp) {
-              setLocalDes({ ...localDes, sdp: peer.localDescription?.sdp });
-            }
+            peer.ondatachannel = (e) => {
+              toast.success("answer 생성 후, 채널을 생성할게요.");
+              console.log("dc", dc, "peer", peer);
+
+              dc = e.channel;
+              dc.onmessage = (e) =>
+                console.log("new message from client! " + e.data);
+              dc.onopen = () => console.log("Connection OPENED!!!!");
+            };
+
+            if (peer.remoteDescription) setLocalDes(peer.remoteDescription);
           })
         );
+      }
     }
   };
 
@@ -79,8 +114,6 @@ function App() {
     const text = ref?.value;
     if (text) dc.send(text);
   };
-
-  useEffect(() => {}, []);
 
   return (
     <div className="wrap">
