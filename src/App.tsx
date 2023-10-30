@@ -3,11 +3,14 @@ import { Toaster } from "react-hot-toast";
 import toast from "react-hot-toast";
 
 import "./App.css";
+import UploadImgWrap from "./components/UploadImgWrap";
 
 function App() {
   const [peer, setPeer] = useState<RTCPeerConnection>();
   const [localDes, setLocalDes] = useState<RTCSessionDescription | null>();
   const [isSendOffer, setIsSendOffer] = useState(false);
+  const [saveImgArr, setSaveImgArr] = useState<string[]>([]);
+  const [delImgBtn, setDelImgBtn] = useState("");
   const [chat, setChat] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
   const setRemoteRef = useRef<HTMLInputElement>(null);
@@ -25,6 +28,12 @@ function App() {
       setPeer(newPeer);
     }
   }, []);
+
+  useEffect(() => {
+    if (delImgBtn)
+      setSaveImgArr((prev) => prev.filter((img) => img !== delImgBtn));
+    console.log(saveImgArr);
+  }, [delImgBtn]);
 
   const handleSDPBtnClick = async () => {
     channel.current = peer?.createDataChannel("channel");
@@ -49,6 +58,7 @@ function App() {
         .setLocalDescription(offer)
         .then(() => {
           toast.success("성공적으로 localDescription을 설정했어요.");
+          console.log("localDescription설정완료.");
           if (peer.localDescription?.sdp) {
             setIsSendOffer(true);
           }
@@ -100,6 +110,7 @@ function App() {
         .setRemoteDescription(new RTCSessionDescription(JSON.parse(sdp)))
         .then(() => {
           toast.success("RemoteDescription을 설정했어요!");
+          console.log("setRemoteDescription완료");
         });
 
       if (!isSendOffer) {
@@ -109,6 +120,7 @@ function App() {
             async (a) =>
               await peer.setLocalDescription(a).then(() => {
                 toast.success("answer를 생성했어요");
+                console.log("answer생성 완료");
                 setLocalDes(peer.localDescription);
               })
           )
@@ -129,11 +141,15 @@ function App() {
     }
   };
 
-  /*  useEffect(() => {
-    return () => {
-      peer.close();
-    };
-  }, []); */
+  const handleUploadFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files !== null) {
+      const filesArr = Array.from(e.target.files) as File[];
+      const tmpArr: string[] = [];
+      filesArr.forEach((file) => tmpArr.push(URL.createObjectURL(file)));
+      setSaveImgArr(tmpArr);
+      console.log(tmpArr);
+    }
+  };
 
   return (
     <div className="wrap">
@@ -154,6 +170,19 @@ function App() {
       <form className="inputWrap" onSubmit={handleSendText}>
         <label htmlFor="enteredText">텍스트 입력</label>
         <input type="text" id="enteredText" ref={textRef} />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleUploadFiles}
+        />
+        {saveImgArr.map((img, i) => (
+          <UploadImgWrap
+            src={img}
+            key={`img-${i}`}
+            setDelImgBtn={setDelImgBtn}
+          />
+        ))}
       </form>
       <div className="inputWrap">
         <label htmlFor="chat">chat</label>
