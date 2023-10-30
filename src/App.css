@@ -32,15 +32,6 @@ p {
   white-space: pre-wrap;
 }
 
-button {
-  margin-left: 20px;
-  width: 7%;
-  height: 50px;
-  border: none;
-  background-color: #aaa;
-  cursor: pointer;
-}
-
 textarea {
   height: 500px;
 }

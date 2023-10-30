@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import "./App.css";
 import UploadImgWrap from "./components/UploadImgWrap";
+import Button from "./components/common/Button";
 
 function App() {
   const [peer, setPeer] = useState<RTCPeerConnection>();
@@ -156,16 +157,12 @@ function App() {
       <div className="inputWrap">
         <label htmlFor="sdp">SDP</label>
         <p>{JSON.stringify(localDes)}</p>
-        <button type="button" onClick={handleSDPBtnClick}>
-          생성
-        </button>
+        <Button onClick={handleSDPBtnClick} text="생성" />
       </div>
       <div className="inputWrap">
         <label htmlFor="setRemote">setRemote</label>
         <input type="text" id="setRemote" ref={setRemoteRef} />
-        <button type="button" onClick={handleSetRemoteBtnClick}>
-          설정
-        </button>
+        <Button onClick={handleSetRemoteBtnClick} text="설정" />
       </div>
       <form className="inputWrap" onSubmit={handleSendText}>
         <label htmlFor="enteredText">텍스트 입력</label>
@@ -173,6 +170,7 @@ function App() {
         <input
           type="file"
           accept="image/*"
+          placeholder="이미지 업로드"
           multiple
           onChange={handleUploadFiles}
         />
